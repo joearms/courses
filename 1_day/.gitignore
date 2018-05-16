@@ -1,0 +1,18 @@
+# BEAM bytecode files
+*.beam
+
+# TeX generated files
+*.aux
+*.lof
+*.log
+*.lot
+*.out
+*.toc
+
+# Emacs and vim files
+*~
+\#*\#
+*.swp
+*.swo
+
+code1/*

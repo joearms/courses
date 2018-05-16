@@ -1,0 +1,56 @@
+One Day Erlang Course
+
+1) Bring a laptop
+
+2) Install Erlang
+
+   Mac:
+      brew install erlang
+   Linux:
+      apt-get install erlang
+   Windows:
+      Head over to
+      http://www.erlang.org/downloads
+
+      And fetch the Windows Binary
+
+3) Make sure you can run Erlang in a shell.
+
+   You should see something like this:
+
+   $ erl
+   Erlang/OTP 20 [erts-9.0] [source] [64-bit] [smp:4:4] ...
+   Eshell V9.0  (abort with ^G)
+   1> 1+2.
+   3
+
+   (Note I typed in 1+2 and REMEMBER THE DOT AT END OF LINE!!!!!!)
+
+
+4) Download the documentation (one_day_erlang.pdf)
+
+You will actually get more out of the course if you've written
+compiled and run a simple erlang program.
+
+So try to perform steps 5) - 8) below
+
+5) With your favorite text editor enter this into a file
+   called hello.erl
+
+   -module(hello).
+   -export([world/0]).
+
+   world() ->
+      "Hello world".
+
+6) Change to the directory where you stored the file
+
+   
+7) Enter these commands to compile and run the code:
+
+   $ erl
+  Erlang/OTP 20 [erts-9.0] [source] [64-bit] [smp:4:4] ..
+  1> c(hello).
+  {ok,hello}
+  2> hello:world().
+  "Hello World"

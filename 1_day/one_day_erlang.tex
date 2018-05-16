@@ -1,0 +1,2428 @@
+\documentclass[12pt]{article}
+
+%% \usepackage{sslides}
+%% \RequirePackage{fancyvrb} 
+
+\usepackage{verbatim}
+\usepackage{graphicx}
+\usepackage[usenames]{color}
+\definecolor{Red}{rgb}{1,0,0}
+\definecolor{Blue}{rgb}{0,0,1}
+\definecolor{Green}{rgb}{0,1,0}
+
+\definecolor{Emph}{rgb}{0.7,0.1,0.1}  %softer red for display
+\renewcommand{\emph}[1]{\textcolor{Emph}{\bf\textit{#1}}}
+
+%% define color for slide titles
+%\definecolor{Title}{rgb}{0,0,1}  %blue
+%% \definecolor{Title}{rgb}{0.2,0.2,0.6}  %softer blue for display
+%\definecolor{Title}{rgb}{1,0,0}  %red
+
+%% the next three lines fix an error in the foramtting
+%% of the table of contents
+
+\makeatletter
+\renewcommand\l@subsection{\@dottedtocline{2}{1.3em}{3em}}
+\makeatother
+
+
+
+%%----------------------------------------------------------------
+\begin{document}
+\title{An Introduction to Elang}
+
+\author{Joe Armstrong $<$erlang@gmail.com$>$\\
+(c) 2018 Joe Armstrong.\\
+ Whoomph Software AB \\
+  All rights Reserved.}
+
+
+ \maketitle
+ 
+ \tableofcontents
+
+\section{To whet your appetite}
+
+By the end of this course I hope you'll be able to {\sl read} Erlang
+programs - and you'll have started to be able to {\sl write} programs.
+
+To start you off I'm going to show you a small program that by the
+end of the day you should be able to understand. I'll show it in
+a moment, but before this we have to talk about patterns.
+
+\subsection{Patterns}
+
+Patterns are central to Erlang. We'll meet them in many contexts.
+
+In expressions:
+
+\verb+ Pattern = Value+
+
+In function definitions:
+
+\begin{verbatim}
+funcName(Pattern1) -> Actions1;
+funcName(Pattern2) -> Actions1;
+...
+funcName(PatternN) -> ActionsN.
+\end{verbatim}
+
+In \verb+case+ statements:
+
+\begin{verbatim}
+case Value of
+   Pattern1 -> Actions1;
+   Pattern2 -> Actions1;
+   ...
+   PatternN -> ActionsN
+end
+\end{verbatim}
+
+In funs (or closures):
+
+\begin{verbatim}
+F = fun(Pattern1) -> Actions1;
+       (Pattern2) -> Actions1;
+       ...
+       (PatternN) -> ActionsN
+    end,
+\end{verbatim}
+
+In message reception:
+
+\begin{verbatim}
+receive
+   Pattern1 -> Actions1;
+   Pattern2 -> Actions1;
+   ...
+   PatternN -> ActionsN
+end
+\end{verbatim}
+
+\subsection{The Multi Server}
+
+\begin{verbatim}
+-module(multi_server).
+-compile(export_all).
+
+start() -> spawn(fun() -> loop() end).
+
+loop() ->
+    receive
+        {_Pid, {email, _From, _Subject, _Text} = Email} ->
+            io:format("multi_server:email:~p~n",[Email]),
+            {ok, S} = file:open("inbox", [write,append]),
+            io:format(S, "~p.~n", [Email]),
+            file:close(S);
+        {_Pid, {im, From, Text}} ->
+            io:format("Msg (~s): ~s~n",[From, Text]);
+        {Pid, {get, File}} ->
+            io:format("multi_server:get:~s~n",[File]),
+            Pid ! {self(), file:read_file(File)};
+        Any ->
+            io:format("multi server got:~p~n",[Any])
+    end,
+    loop().
+\end{verbatim}
+
+This program is:
+
+\begin{itemize}
+\item An email server - (SMTP becomes an erlang message)
+\item An instant messgaging agent (jabber?, XMPP)
+\item A web server (or FTP server, or both) (HTTP, ...)
+\end{itemize}
+
+\section{Getting started}
+
+\begin{itemize}
+\item Starting the shell
+\item Entering commands
+\item Stopping the shell
+\item Editing commands
+\item Data types
+\item Variables
+\item Pattern matching
+\end{itemize}
+
+\subsection{Starting the shell}
+
+\begin{itemize}
+\item Unix-based systems:  \verb+$ erl+ 
+\item Windows:             \verb+Programs -> OTP ... -> Erlang+ 
+\end{itemize}
+
+This is what you see
+
+\begin{verbatim}
+$ erl
+Erlang (BEAM) emulator version 5.6 [source] [smp:4] [async-threads:0] 
+             [hipe] [kernel-poll:false]
+
+Eshell V5.6  (abort with ^G)
+1> 
+\end{verbatim}
+
+\subsection{Shell commands}
+
+\begin{itemize}
+\item Shell is \verb+read-eval-print+ loop
+\item Commands end with a period (.) followed by whitespace
+\end{itemize}
+
+\begin{verbatim}
+1> 3 * 7.
+21
+2> math:sqrt(2).
+1.41421
+3> "hello". "world".
+"hello"
+4> "world".
+"world"
+\end{verbatim}
+
+\subsection{Shell commands}
+
+\begin{itemize}
+\item Repeated prompt means command is not yet finished
+\end{itemize}
+
+\begin{verbatim}
+5> 123 +
+5> 3456 *
+5> 789.
+2726907
+6>
+\end{verbatim}
+
+\subsection{Stopping the shell}
+
+\begin{itemize}
+\item (ctrl) + C
+\end{itemize}
+
+\begin{verbatim}
+BREAK: (a)bort (c)ontinue (p)roc info (i)nfo (l)oaded
+       (v)ersion (k)ill (D)b-tables (d)istribution
+a
+\end{verbatim}
+
+\begin{itemize}
+\item (ctrl) +\ -- immediate exit
+\item init:stop(). -- controlled exit
+\item erlang:halt() -- uncontrolled exit
+\end{itemize}
+
+\subsection{Recall and edit commands in the shell}
+
+\begin{itemize}
+\item Arrow keys
+\item Emacs editor commands
+\begin{itemize}
+\item Ctrl + B -- back
+\item Ctrl + F -- forward
+\item Ctrl + P -- previous
+\item Ctrl + N -- next
+\end{itemize}
+\item Tab -- try to expand module or function names
+\end{itemize}
+
+\subsection{Exercise}
+
+Try it out. Fire up erlang at a command prompt. Do some basic arithmetic.
+
+\begin{verbatim}
+$ erl
+1> 123456789 * 987654321 * 123456789.
+15053411111487447638891241
+...
+\end{verbatim}
+
+\subsection{The shell}
+
+\begin{itemize}
+\item Major caveat: you cannot define functions in the shell
+\item Instead, create in separate files and compile in the shell
+\end{itemize}
+
+\section{Variables}
+
+\begin{itemize}
+\item Variables start with an upper case letter
+\item syntax \verb+[A..Z][a..zA..Z0..9]+ (almost)
+\end{itemize}
+
+\begin{verbatim}
+1> MinutesPerHour = 60.
+60
+2> HoursPerDay = 24.
+24
+3> MinutesPerDay = MinutesPerHour * HoursPerDay.
+1440
+4> 
+\end{verbatim}
+
+\subsection{Variables cannot vary}
+
+\begin{verbatim}
+4> Count = 1.
+1
+5> Count = Count + 1.
+** exception error: no match of right hand side value 2
+\end{verbatim}
+
+\begin{itemize}
+\item These are not like Java or C\# variables
+\item More like variables in math
+\end{itemize}
+
+\subsection{Back to high school}
+
+\begin{verbatim}
+     x + 3y = 15
+     x - 3y = 3
+
+     x = ?, y = ?
+\end{verbatim}
+
+
+\verb+x+ and \verb+y+ mean the same thing in all equations.
+
+\subsection{Single assignment variables}
+
+\begin{itemize}
+\item As in math, \verb+X = X + 1+ is illegal
+\item Enables concurrency
+\item No locks needed since we can't share and update data
+\item Makes debugging easy (because variable is only set once)
+\item Lives as long as it is within scope
+\end{itemize}
+
+\section{Pattern matching}
+
+\begin{itemize}
+\item \verb+Pattern = Value+ matchs Pattern against Value
+\item \verb+X = 10+
+means "match the pattern \verb+X+ against the value \verb+10+"
+\end{itemize}
+
+\subsection{Var = value}
+
+\begin{itemize}
+\item if \verb+Var+ is a "fresh" (new , unbound) variable, then the pattern is matched by giving \verb+Var+ the value \verb+Value+
+\item if \verb+Var+ already has a value, pattern matches if its value equals \verb+Value+, fails otherwise
+\end{itemize}
+
+\begin{verbatim}
+1> X = 10.
+10
+2> X = 10.  % matches
+10
+3> X = 2*4 + 2.  % matches
+10
+4> X = 11.
+** exception error: no match of right hand side value 11
+\end{verbatim}
+
+
+\section{Data types}
+
+Simple data types:
+
+\begin{itemize}
+\item Integers 
+\begin{itemize}
+\item \verb+1 45 123123 2#101012 8#0723 16#face+
+\end{itemize}
+\item Floats 
+\begin{itemize}
+\item \verb+12.34e-07 3.14159+
+\end{itemize}
+\item Atoms 
+\begin{itemize}
+\item \verb+true false hello_world 'funny atom #$%!!'+
+\item atoms are like enumerated types in C
+\item (\verb+monday+, \verb+tuesday+, \verb+wednesday+, ... are atoms -- these can be used
+to represent days of the week)
+\end{itemize}
+\end{itemize}
+
+\subsection{Complex types - Tuples}
+
+\begin{itemize}
+\item Ordered list of values
+\verb+{food, egg}+
+\item can be nested
+\verb+{person,{firstname,"joe"},{lastname,"armstrong"}}+
+\end{itemize}
+
+\subsection{Creating and unpacking a tuple}
+
+\begin{itemize}
+\item Constructed using \verb+{+ ... \verb+}+ notation
+\item Unpacked by pattern matching
+\end{itemize}
+
+\begin{verbatim}
+4> Person = {person, "Joe", "Armstrong"}.
+{person, "Joe", "Armstrong"}
+5> {Type, First, Last} = Person.
+{person, "Joe", "Armstrong"}
+6> Type.
+person
+7> Last.
+"Armstrong"
+\end{verbatim}
+
+\subsection{Repeated occurrence of variables}
+
+If a variable occurs more than once in a pattern,
+it must have the same value.
+
+\begin{verbatim}
+1> {X, Y, X} = {1, a, 1}.
+{1,a,1}
+2> X.
+1
+3> Y.
+a
+4> {A, B, A} = {1, a, 2}.
+** exception error: no match of right hand side value {1,a,2}
+\end{verbatim}
+
+
+\subsection{Anonymous variables}
+
+\verb+_+ is a "don't care" variable. Used as a placeholder in pattern
+matches.
+
+\begin{verbatim}
+1> {X, _, X} = {1, a, 1}.
+{1,a,1}
+2> X.
+\end{verbatim}
+
+\subsection{Complex types - Lists}
+
+\begin{itemize}
+\item Sequence of values (can be different types)
+\item \verb+[]+ is the empty list
+\item \verb+[X1,X2,...,Xn]+ is a list with elements \verb+X1+, \verb+X2+, ..., \verb+Xn+
+\item \verb+[...]+ in a pattern deconstructs the list
+\end{itemize}
+
+\begin{verbatim}
+1> X = [1, 2, a, b].
+[1,2,a,b]
+2> [A, B, C, D] = X.
+[1,2,a,b]
+3> A.
+1
+4> D.
+b
+\end{verbatim}
+
+\subsection{Lists as recursive structures}
+
+\begin{itemize}
+\item First element of a list is the {\sl head}, what remains is a list
+called the {\sl tail}. (Lisp programmers, think CAR and CDR)
+
+\item \verb+[ ]+ is the empty list
+\item \verb+[ H | T ]+ is the list with head \verb+H+ and tail \verb+T+ (which must be a list)
+
+\item Can be used to create and to pattern match
+\end{itemize}
+
+\begin{verbatim}
+1> X = [1,2,3,4].
+[1,2,3,4]
+2> Y = [abc|X].
+[abc,1,2,3,4]
+3> [X1,_,X2|X4] = Y
+[abc,1,2,3,4]
+4> X3.
+2
+5> X4.
+[3,4]
+\end{verbatim}
+
+
+\subsection{Strings}
+
+\begin{itemize}
+\item \verb+$a+ is short for \verb+97+ (The ASCII code for the character \verb+a+)
+\item \verb+"abc"+ is shorthand for \verb+[$a, $b, $c]+
+\item The shell prints lists of integers as strings (if it can)
+\item \verb|++| concatenates lists
+\end{itemize}
+
+
+\begin{verbatim}
+1> Name = "Armstrong".
+"Armstrong"
+2> "Joe " ++ Name.
+"Joe Armstrong"
+3> [ 99, 97, 110].
+"can"
+\end{verbatim}
+
+\subsection{Quiz: If strings are lists...}
+
+\begin{verbatim}
+1> A = "Hi,".
+"Hi,"
+2> B = "there".
+"there"
+3> length([A, B]).
+?
+4> length(A ++ B).
+?
+5> length([A | B]).
+?
+\end{verbatim}
+
+\subsection{Complex types - Maps}
+
+\begin{verbatim}
+1> Person = #{first => "Joe", last => "Armstrong"}.
+#{first => "Joe",last => "Armstrong"}
+2> maps:get(first, Person).                        
+"Joe"
+3> maps:get(age, Person).  
+** exception error: {badkey,age}
+     in function  maps:get/2
+        called as maps:get(age,#{first => "Joe",last => "Armstrong"})
+
+4> maps:find(age,Person).
+error
+5> maps:find(first,Person).
+{ok,"Joe"}
+\end{verbatim}
+
+You can pattern match on maps:
+
+\begin{verbatim}
+birthday(#{age := N} = Person) ->
+    Person#{arg => N+1}.
+\end{verbatim}
+
+\subsection{Exercise}
+\begin{itemize}
+\item Try to predict the result of each of the following {\sl before}
+typing it into the shell. Use the command \verb+f().+ after each
+command to {\sl forget} any bindings. \verb+b()+ prints all bindings.
+\end{itemize}
+
+\begin{verbatim}
+X = true.
+{X,abc} = {123,abc}.
+{X,Y,Z} = {222,def,"cat"}.
+{X,Y} = {333,ghi,"cat"}
+{X,Y,X} = {{abc,12},42,{abc,12}}.
+{X,Y,X} = {{abc,12},42,true}.
+[H|T] = [1,2,3,4,5].
+[H|T] = "cat".
+[A,B,C|T] = [a,b,c,d,e,f].
+\end{verbatim}
+
+
+\subsection{Shell commands}
+\begin{verbatim}
+> help().
+ b()         -- display all variable bindings        
+ e(N)        -- repeat the expression in query <N>   
+ f()         -- forget all variable bindings         
+ f(X)        -- forget the binding of variable X     
+ h()         -- history                              
+ history(N)  -- set how many previous commands to keep 
+ results(N)  -- set how many previous command results to keep
+ v(N)        -- use the value of query <N>                   
+\end{verbatim}
+
+...  many more commands ...
+
+\section{Compiling and testing}
+
+\begin{itemize}
+\item Step 1 - Write a unit test
+\item Step 2 - Write some code
+\item Step 3 - Iterate 1 and 2
+\end{itemize}
+
+(In most of the exercises I'll give you the unit tests.)
+
+\subsection{Write the unit test}
+
+\verbatiminput{code/compiling/math3a.erl}
+
+But...
+
+\begin{verbatim}
+1> c(math3a).
+./math3a.erl:5: function sum/1 undefined
+error
+\end{verbatim}
+
+\subsection{Correct the code and run}
+
+\verbatiminput{code/compiling/math3b.erl}
+
+\begin{verbatim}
+1> c(math3b).
+{ok,math3b}
+2> math3b:test().
+** exception error: no function clause matching math3b:sum([ ])
+     in function  math3b:sum/1
+     in call from math3b:test/0
+\end{verbatim}
+
+\subsection{Try again}
+
+\verbatiminput{code/compiling/math3c.erl}
+
+\begin{verbatim}
+7> c(math3c).     
+{ok,math3c}
+8> math3c:test().
+horray
+\end{verbatim}
+
+\subsection{Anatomy of a function}
+
+\verbatiminput{code/compiling/amod.erl}
+
+\subsection{Useful Trick when developing}
+
+\verb+-compile(export_all)+ exports all functions from this module.
+
+\subsection{Running your program}
+
+\begin{itemize}
+\item Compile it \verb+$ erlc mycode+
+\item Run it \verb+$ erl -noshell -pa /path/to/code -s Mod Func Args ...+
+\end{itemize}
+
+\subsection{Or use escript}
+
+\begin{verbatim}
+#!/opt/local/bin/escript 
+
+main(List) ->
+    io:format("Args are ~p~n", [List]).
+\end{verbatim}
+
+Then, from the command line
+
+\begin{verbatim}
+% chmod +x myprog
+% ./myprog 34 67
+Args are ["34","67"]
+\end{verbatim}
+
+\subsection{Code paths etc.}
+
+\begin{itemize}
+\item Erlang autoloads compiled modules using the current code search paths
+
+\item For libraries, can set the path in \verb+./.erlang+ or \verb+${HOME}/.erlang+
+\item both are read by \verb+erl+ when it starts
+
+\item Can contain any \verb+erl+ commands 
+\end{itemize}
+
+\begin{verbatim}
+code:add_patha("/Users/joe/Desktop/work/2007/jaerlang").
+code:add_patha("/Users/joe/Desktop/work/2007/jaerlang/socket_dist").
+\end{verbatim}
+
+\subsection{Exercise:  During an idle moment...}
+
+Try adding \verb+io:format("Hello from:~p~n",[file:get_cwd()]).+ 
+to either \verb+/.erlang+ or \verb+${HOME}/.erlang+.
+
+\section{Getting help}
+
+Manual pages are not installed by default (but MacPorts does load 
+them for you)
+
+\begin{itemize}
+\item Unix --
+  \verb+wget http://www.erlang.org/download/otp_doc_man_R11B-5.tar.gz+
+  \begin{itemize}
+  \item Unpack so that the \verb+man+ directory is unpacked at the root
+    of the Erlang distribution (usually \verb+/usr/local/lib/erlang+).
+  \item View using \verb+erl -man Modulename+
+  \end{itemize}
+    
+\item Windows -- the HTML rendered documentation is included in the distribution
+\end{itemize}
+
+\section{Sequential erlang}
+
+\subsection{Review: Types}
+
+Sequential Erlang programs manipulate instances of data types
+
+\begin{itemize}
+\item \verb+integers+ -- \verb+2176537165+ \verb+1+ \verb+16#face+
+\item \verb+floats+ -- \verb+1.24234+
+\item \verb+atoms+ -- \verb+monday+, \verb+tuesday+
+\item \verb+binaries+ -- \verb+<<"3868GAJSJB">>+ memory buffers
+\end{itemize}
+
+With two complex data types
+
+\begin{itemize}
+\item \verb+lists+ -- \verb+[X1, X2, ...]+
+\item \verb+tuples+ -- \verb+{X1, X2, ...}+
+\end{itemize}
+
+\subsection{Functions}
+
+Remember:
+
+\begin{verbatim}
+func(Pattern1) -> Actions1;
+func(Pattern2) -> Actions2;
+...
+func(PatternN) -> ActionsN.
+\end{verbatim}
+
+{\bf Get the punctuation right - SEMI-COLON ... DOT.}
+
+\begin{verbatim}
+temp_convert({f, F}) -> {c, 5*(F-32)/9};
+temp_convert({c, C}) -> {f, 32 + 9*C/5}.
+\end{verbatim}
+
+\begin{verbatim}
+lookup(Key, [{Key,Val}|_]) -> {yes, Val};
+lookup(Key, [_|T]) -> lookup(Key, T);
+lookup(Key, []) -> no.
+\end{verbatim}
+
+\subsection{Built-In functions (BIFs)}
+
+\begin{itemize}
+\item We can't do everthing with pattern matching For example, type
+  conversion BIFS, convert an atom to a list, convert a tuple to a
+  list etc.  
+\item \verb+atom_to_list(Atom)+, \verb+tuple_to_list(Tuple)+,
+  \verb+term_to_binary(term)+, \verb+binary_to_term(Bin)+
+\item \verb+erl -man erlang+ describes all BIFS
+(book pages 451--460 contains a summary)
+\end{itemize}
+
+\subsection{BIFs For type conversion}
+
+\begin{verbatim}
+gen_tcp:send(Socket, term_to_binary(Term)), ...
+
+receive
+   {tcp_data, Socket, Bin} ->
+        Term = binary_to_term(Bin)
+   ...
+end.
+\end{verbatim}
+
+\subsection{BIFS for efficiency}
+
+\begin{verbatim}
+encode(Term) ->
+   B = term_to_binary(Term),
+   Md5 = erlang:md5(B),
+   <<B/binary,Md5/binary>>.
+
+decode(<<Md5:16/binary,B/binary>>) ->
+   Md5 = erlang:md5(B), %% throws an error if wrong value
+   binary_to_term(B).
+\end{verbatim}
+
+\subsection{BIFS}
+
+\begin{itemize}
+\item Quirky syntax
+\item Sometimes \verb+tuple_to_list+, sometimes \verb+erlang:now()+
+\item In theory the \verb+erlang:+ BIFS are implement in Erlang (not true :-)
+
+\item Behave as if they were defined in the module \verb+erlang+
+\end{itemize}
+
+\subsection{apply}
+
+You can build a call to a function and apply that function at run-time
+using \verb+apply(Mod, Func, [Arg1, Arg2, ...])+.
+
+\begin{verbatim}
+1> M = list_to_atom("erlang").       
+erlang
+2> F = list_to_atom("tuple_to_list").
+tuple_to_list
+3> apply(M, F, [{a,b,c}]).           
+[a,b,c]
+4> M:F({a,b,c}).
+[a,b,c]
+\end{verbatim}
+
+\subsection{Funs}
+
+Funs are ``anonymous functions'' (also called lambda-expressions, closures).
+
+\begin{verbatim}
+1 > Double = fun(X) -> 2*X end.
+#Fun<erl_eval.4.4564646>
+2 > Double(2).
+4
+\end{verbatim}
+
+Funs can be arguments to functions.
+
+\begin{verbatim}
+3 > lists:map(Double, [1,2,3,4]).
+[2,4,6,8]
+\end{verbatim}
+
+\subsection{Let's add a for loop to Erlang}
+
+\verbatiminput{code/sequential/hofs.erl}
+
+\begin{verbatim}
+1> c(hofs).
+{ok,hofs}
+2> hofs:for(1,10,fun(I) -> 2*I end).
+[2,4,6,8,10,12,14,16,18,20]
+\end{verbatim}
+
+\subsection{Funs can return funs}
+
+\begin{verbatim}
+1> MakeAdder = fun(Inc) -> fun(X) -> X + Inc end end.
+#Fun<erl_eval.6.72228031>
+2> Add5 = MakeAdder(5).
+#Fun<erl_eval.6.72228031>
+3> Add5(10).
+15
+\end{verbatim}
+
+\subsection{map}
+
+\begin{itemize}
+\item apply the same function to every element of a list.
+The result is a list the same length as the input list
+\item \verb+map(F, [X1,X2,...Xn]) -> [F(X1), F(X2), ..., F(Xn)]+
+\item {\sl Incredibly useful}
+\end{itemize}
+
+\begin{verbatim}
+ 1 > lists:map(fun(X) -> X * X end, [1,2,3]).
+ [1,4,9]
+\end{verbatim}
+
+\subsection{Writing our own map}
+
+
+\begin{verbatim}
+my_double([ H | T ]) -> [ 2*H | my_double(T) ];
+my_double([]) -> [].
+\end{verbatim}
+
+\subsection{Writing our own map}
+
+\begin{verbatim}
+my_double([ H | T ]) -> [ 2*H | my_double(T) ];
+my_double([]) -> [].
+\end{verbatim}
+
+Generalize:
+
+\begin{verbatim}
+my_map(Fun, [ H | T ]) -> [ Fun(H) | my_map(Fun, T) ];
+my_map(Fun, [])  -> [].
+
+my_double(L) -> my_map(fun(X) -> 2*X end, L).
+\end{verbatim}
+
+\subsection{Accumulators}
+
+Let's write \verb+sum+ using an accumulator:
+
+\begin{verbatim}
+sum(L) -> sum(L, 0).
+
+sum([H|T], Sum) -> 
+    Sum1 = Sum + H,
+    sum(T, Sum1);
+sum([], Sum) ->
+    Sum.
+\end{verbatim}
+
+Note we have two different functions, \verb+sum/1+ and
+\verb+sum2/2+. This is a common pattern--the additional parameters are
+analogous to function-local variables in other languages.
+
+\subsection{List comprehensions}
+
+
+\verb+[ Constructor || Pattern <- List, Predicate, ...]+ 
+
+
+\begin{itemize}
+\item Come from set theory--the set of all \verb+X+ such that \verb+Y+, 
+eg \verb+{ x : x is even }+
+\item In Erlang, use \verb+||+
+\end{itemize}
+
+\begin{verbatim}
+2> L = lists:seq(1,20).
+[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
+3> [ X || X <- L, (X rem 2) =:= 0].
+[2,4,6,8,10,12,14,16,18,20]
+\end{verbatim}
+
+* Allows very compact code
+
+\verb+map(F, L) -> [F(X) || X <- L].+
+
+\subsection{Quicksort}
+
+\verbatiminput{code/sequential/qsort.erl}
+
+\begin{verbatim}
+1> c(qsort).                  
+{ok,qsort}
+2> qsort:sort([1,a,3,4,b,c,2]). 
+[1,2,3,4,a,b,c]
+\end{verbatim}
+
+\subsection{Multiple return values}
+
+\begin{itemize}
+\item Single return value \verb+X = some_func(....)+
+\item To get multiple return values use a tuple\\
+  \verb+{X, Y, Z} = another_func(....)+ 
+\end{itemize}
+
+\subsection{Accumulators}
+\begin{itemize}
+\item Pass extra argument(s) into the function
+\end{itemize}
+
+\verbatiminput{code/sequential/accum.erl}
+
+\begin{verbatim}
+1> accum:evens_and_odds([1,2,3,4,5,6,7]).
+{[6,4,2],[7,5,3,1]}
+\end{verbatim}
+
+\subsection{Accumulators}
+\begin{itemize}
+\item User \verb+reverse+ to fix order at end
+\end{itemize}
+
+\verbatiminput{code/sequential/accum2.erl}
+
+\begin{verbatim}
+2> accum:evens_and_odds([1,2,3,4,5,6,7]).
+{[2,4,6],[1,3,5,7]}
+\end{verbatim}
+
+\subsection{Guards}
+
+Extend function pattern matching to include additional predicates and
+comparisons
+
+\begin{verbatim}
+func(A, B)  when  ...guard...  -> 
+\end{verbatim}
+
+For example:
+
+\begin{verbatim}
+func1(A, B) when is_integer(A) ->
+    ...
+\end{verbatim}
+
+\subsection{Single Guard conditions}
+\begin{itemize}
+\item Type-match predicates (\verb+is_integer(X)+, \verb+is_tuple(X)+, ...)
+\item Built-in guard functions (\verb+length(X)+, \verb+hd(X)+, ...)
+\item comparisons, boolean, and arithmetic expressions
+\end{itemize}
+
+\begin{verbatim}
+func1(A, B) when is_integer(A) andalso A + 1 > B ->
+    ...
+\end{verbatim}
+
+\subsection{Full Guard}
+
+\begin{itemize}
+\item A comma separated list of single guard conditions
+\item Matches only if all match
+\end{itemize}
+
+\begin{verbatim}
+func1(A, B) when is_integer(A), is_tuple(B) ->
+    ...
+\end{verbatim}
+
+\subsection{Guard Sequence}
+
+\begin{itemize}
+\item A semicolon separated list of full guards
+\item matches if any match
+\end{itemize}
+
+\begin{verbatim}
+func1(A, B) when is_integer(A), is_tuple(B); is_float(A), is_tuple(B) ->
+    ...
+\end{verbatim}
+
+Or
+
+\begin{verbatim}
+classify(Day) when A =:= saturday; A =:= sunday ->
+    weekend;
+classify(Day) ->
+    weekday.
+\end{verbatim}
+
+\subsection{case and if}
+
+\begin{verbatim}
+goto_work(Day) ->                   goto_work(Day) ->
+    case classify(Day) of              if
+        weekday -> true;                  Day =:= sunday -> false;
+        weekend -> false                  Day =:= saturday -> false;
+    end.                                  true             -> true
+                                       end.
+\end{verbatim}
+
+Remember:
+
+\begin{verbatim}
+case Value of
+    Pattern1 -> Actions1;
+    Pattern2 -> Actions2;
+    ...
+    PatternN -> ActionsN
+end
+\end{verbatim}
+
+{\bf Get punctuation right SEMI-COLONS.}
+
+
+\subsection{Booleans}
+
+\begin{itemize}
+\item \verb+true+ and \verb+false+ atoms (not built-in type)
+\item By convention only, but a strongly recommended convention.
+\end{itemize}
+
+
+\subsection{Many functions work with booleans}
+
+\begin{itemize}
+\item \verb+lists:filter(Fun, L) -> L'+
+
+
+This takes a list of values \verb+[X1,X2,...,Xn]+ and produces a new
+list \verb+[Xi,Xj,...]+ of all the vlaues in \verb+L+ for which \verb+Fun(X)+ is
+\verb+true+.
+
+\verb+lists:partition(Fun, L) -> {T, F}+
+
+Splits the elements \verb+X+ in \verb+L+ into two sub-lists \verb+T+
+and \verb+F+ depending on whether \verb+Fun(X)+ is \verb+true+ or
+\verb+false+.
+\end{itemize}
+
+These functions will not work on things like \verb+on+ and \verb+off+.
+
+\subsection{Tame large tuples with records}
+
+\verb+{person,"joe","armstrong"}+ is fine when there are just a few
+elements but when we have more than (say) half a dozen elements things
+get messy.
+
+\begin{verbatim}
+-record(person, {name,firstname,lastname,age,sex,weight,height}).
+
+X = #person{name="jane", age=32, sex=female} %% creates a new record
+
+birthday(#person{age=N} = X) ->
+    X#person{age = N+1}
+\end{verbatim}
+
+Records both construct and pattern match.
+
+\subsection{Record defaults}
+
+\begin{verbatim}
+-record(window, {width=100, ht=100, x=10, y=10, color=red}).
+
+X = #window{width=200}, %% other arguments get default values
+\end{verbatim}
+
+\subsection{Not mentioned}
+
+\begin{itemize}
+\item macros
+
+\item parse transforms
+\end{itemize}
+
+\subsection{Exercises: }
+
+Write a program to number the elements in a list.
+Here's the test case:
+
+\begin{verbatim}
+test() ->
+  [{1,a},{2,b},{3,c}] = number_list([a,b,c]),
+\end{verbatim}
+
+
+Write functions \verb+one(List)+, \verb+two(List)+, and
+\verb+three(List)+ that each returns two lists containing the even and
+odd elements in \verb+List+. Use three different techniques.  The test
+case is:
+
+\begin{verbatim}
+test() ->
+    {[2,4],[1,3,5]} = one([1,2,3,4,5]),
+    {[2,4],[1,3,5]} = two([1,2,3,4,5]),
+    {[2,4],[1,3,5]} = three([1,2,3,4,5]),
+    hooray.
+\end{verbatim}
+
+\section{Exceptions}
+
+\begin{itemize}
+\item Type errors occur when calling a BIF with the wrong type
+\item Pattern matching errors
+\item Explicit errors caused by program executing \verb+throw+,
+  \verb+exit+, \verb+error+
+\item exceptions can be {\sl converted} into values with
+\verb+catch+  and\\
+\verb+try ... catch ... after ... end+
+\end{itemize}
+
+\subsection{Convert exceptions into values}
+
+\begin{verbatim}
+1> X = atom_to_list(123).
+** exited: {badarg,[{erlang,atom_to_list,[1234]},
+                    {erl_eval,do_apply,5},
+                    {erl_eval,expr,5},
+                    {shell,exprs,6},
+                    {shell,eval_loop,3}]} **
+2> X.
+** 1: variable 'X' is unbound **
+\end{verbatim}
+
+\begin{verbatim}
+3> X = (catch atom_to_list(123)).
+{'EXIT',{badarg,
+  [{erlang,atom_to_list,[1234]},
+   {erl_eval,do_apply,5},
+   {erl_eval,expr,5},
+   {erl_eval,expr,5},
+   {shell,exprs,6},
+   {shell,eval_loop,3}]}}
+4> X.
+{'EXIT',{badarg,
+  [{erlang,atom_to_list,[1234]},
+   {erl_eval,do_apply,5},
+   {erl_eval,expr,5},
+   {erl_eval,expr,5},
+   {shell,exprs,6},
+   {shell,eval_loop,3}]}}
+\end{verbatim}
+
+\subsection{Protecting a function call}
+
+\verb+catch F(X)+ returns \verb+F(X)+ if no exception is generated
+while evaluating the function
+
+\begin{verbatim}
+some_function(X, Y) ->
+    case (catch something_that_might_crash(X, Y)) of
+        {'EXIT', Why} -> 
+            %% .. handle the error ...;
+        NormalReturn ->
+            %% regular processing
+    end.
+\end{verbatim}
+
+Evaluating \verb+some_function(X, Y)+ will never raise an exception
+(assuming that we correctly handle the error in the \verb+EXIT+ branch
+of the \verb+case+ statement)
+
+\subsection{Protecting a sequence of expressions}
+
+\begin{verbatim}
+start(Arg1, Arg2) ->
+    try 
+       begin
+           ok = start_server(),
+           L1 = dothis(Arg1),
+           ...
+       end
+    catch
+       exit: Pattern ->
+          ...
+    after
+        ....
+    end
+\end{verbatim}
+
+\subsection{Use exceptions for "impossible" situations}
+
+I once found this code:
+
+\begin{verbatim}
+opcode(load) -> 1;
+opcode(store) -> 2;
+opcode(X) ->    %% invalid: what should I do now?
+    io:format("bad opcode:~p~n",[X]).
+\end{verbatim}
+
+What does this return for invalid opcodes?
+
+\subsection{Solutions}
+
+{\sl do something}
+
+\begin{verbatim}
+opcode(load) -> 1;
+opcode(store) -> 2;
+opcode(X) -> exit({ebadOpCode, X}).
+\end{verbatim}
+
+Solution two: {\sl do nothing, be lazy} (best)
+
+\begin{verbatim}
+opcode(load) -> 1;
+opcode(store) -> 2.
+\end{verbatim}
+
+Program will generate an exception when called with an invalid
+argument {\sl precisely as in solution two, the only difference
+is the name of the exception}.
+
+\subsection{exit, throw, or error}
+
+\begin{itemize}
+\item use \verb+exit+ if this is so serious that the process should die
+\item use \verb+thow+ if you intend to catch the error in the program
+\item use \verb+error+ if you want to behave like a "normal" library error
+\end{itemize}
+
+\subsection{Defensive programming is painful...}
+
+\begin{verbatim}
+case file:open("config") of
+    {ok, T} ->
+        case T of
+           {port,P,host,H} ->
+              case open_socket(Host, Port) of
+                  {ok, Pid} ->
+                     ...
+                  {error, Why} ->
+                     ...
+              end
+           ...  ->
+              ...
+         end
+      ...
+\end{verbatim}
+
+\subsection{So don't program defensively}
+
+\begin{itemize}
+\item Use {\bf ONE BIG CATCH AT THE TOP OF YOUR PROGRAM}
+\item write {\sl everything else} as if it is going to work.
+\item let your code crash early
+\end{itemize}
+
+\begin{verbatim}
+start(...) ->
+    try
+        begin
+            {ok, T} = file:consult("config"),
+            {port,Port,host,Host} = T,
+            {ok, Pid} = open_socket(Host, Port)
+        end;
+    catch
+      What:Why ->
+          io:format("oooo err: ~p ~p~n",[What,Why])
+    end
+\end{verbatim}
+
+(We'll talk about inter-process errors shortly...)
+
+\subsection{Exercise:}
+
+The BIF \verb+list_to_integer("1234")+ will return \verb+1234+, but
+exits with a bad argument exception if given a bad string. Write a
+function \verb+list_to_int(String)+ that returns \verb+{ok, Int)+ or
+  \verb+{error, eBadInt}+.
+
+The unit test is:
+
+\begin{verbatim}
+test() ->
+    {ok, 123} = list_to_int("123"),
+    {error, eBadInt} = list_to_int("abc"),
+    hooray.
+\end{verbatim}
+
+\subsection{Debugging}
+
+\begin{itemize}
+\item There is a debugger--very few people use it
+\item Errors are pretty easy to find. This is a
+consequence of single assignment
+\item Compiler errors are "obvious"
+\item \verb+lib_misc:dump(File, Term)+ for large data structures
+\item \verb+io:format("...~p....~n", [Var1, ...])+
+\item \verb+?NYI+ macro
+\item \verb+ifdef(DEBUGGING)+
+\end{itemize}
+
+\subsection{lib\_misc:dump(File, Term)}
+
+
+\begin{verbatim} 
+1 > V = epp:parse_file("ex1_bit_syntax.erl","",""),true.
+true
+2> lib_misc:dump("debug", V).
+Dumping term to debug
+ok
+\end{verbatim}
+
+
+\verb+V+ is stored in a file called \verb+debug+
+
+\begin{verbatim}
+{ok,
+ [{attribute,1,file,{"ex1_bit_syntax.erl",1}},
+  {attribute,1,module,ex1_bit_syntax},
+  {attribute,2,compile,export_all},
+  {function,
+   31,
+   test,
+   0,
+   [{clause,
+     31,
+     [],
+     [],
+     [{match,
+       32,
+       {var,32,'Code'},
+    ...
+\end{verbatim}
+
+\subsection{MACRO: Not Yet Implemented}
+
+\begin{verbatim}
+-define(NYI(X),(begin 
+                    io:format("*** NYI ~p ~p ~p~n",[?MODULE, ?LINE, X]),
+                    exit(nyi) 
+                end)).
+\end{verbatim}
+
+Use like this:
+
+\begin{verbatim}
+    ...
+    ?NYI({glurk, X, Y}).
+    ...
+\end{verbatim}
+
+\subsection{MACRO: DEBUGGING}
+
+\begin{verbatim}
+-define(DEBUGGING, true).
+-ifdef(DEBUGGING).
+-define(DEBUG(X), X).
+-else.
+-define(DEBUG(X), void).
+-endif.
+
+...
+    ?DEBUG(io:format("Found:~p~n",[Files])),
+...
+\end{verbatim}
+ 
+\section{Concurrency}
+
+\begin{itemize}        
+\item The world {\sl is} concurrent
+\item Programming concurrent activities in a sequential language is
+{\sl artificially difficult}
+\item Modern processors are concurrent
+\end{itemize}
+
+
+\subsection{Models of concurrency}
+
+\begin{itemize}
+
+\item Shared memory (locks, mutexes, coroutines, processes,
+threads, deadlock, livelock, failure, thread-safe)
+
+\item Message passing 
+\end{itemize}
+
+\subsection{Processes or threads?}
+ 
+\begin{itemize}
+\item Threads {\sl share} resources (essentially an efficiency hack -- beware
+of premature optimizations)
+\item Processes do not share things. Processes are the basis of {\sl security} in an operating system
+
+\item (Caution) the world ``process'' is thought of as a synonym for
+  ``slow, big, difficult to manage'' Erlang processes are {\sl very
+  lightweight}. (Much lighter than a conventional thread)
+\end{itemize}
+
+\subsection{Concurrency in other languages}
+
+\begin{itemize}
+\item Can only create very small number of processes (a few thousand at most)
+\item Heavy weight
+\item Only supports message passing and not the kind of error handling semantics that
+Erlang has
+\end{itemize}
+
+\subsection{Basic ideas}
+
+\begin{itemize}
+\item If you know the name of a process, you can send it a message
+\item \verb+Pid ! Message+
+\item If \verb+Pid+ is hidden you cannot send a message to the
+  processes (security)
+\item Message arrives in a mailbox (like email)
+\item You never know if a message arrives (if you want to be sure send a message back)
+\item You can {\sl link} to a process. If a process dies and you linked
+to it, you will be sent an error signal.
+\item The error signal is like a message (more later)
+\end{itemize}
+
+\subsection{Everything is a process}
+
+In the Erlang world we model all non-Erlang things as processes.
+
+We interact with all objects by sending them messages. The behavior
+of all objects in the external world is inferred from analysing the
+messages they send to us. 
+
+This is the {\sl purest} form of OO (encapsulation, isolation, polymorphic).
+
+\subsection{Processes}
+
+\begin{itemize}
+\item \verb+spawn+ -- create a new process
+\item \verb+send+ -- send a message to a process
+\item \verb+receive+ -- receive a message
+\end{itemize}
+
+\subsection{Spawn}
+
+Three syntaxes:
+\begin{itemize}
+\item \verb+spawn(fun foo/0)+ -- runs \verb+foo/0+ in a new process
+\item \verb+spawn(fun() -> ... end)+ -- spawns an inline fun 
+\item \verb+spawn(Mod, Func, [Arg1, Arg2, ..., Argn])+ performs\\
+\verb+apply(Mod, Fun, [Arg1, Arg2, ..., Argn])+ in
+a new process.
+\end{itemize}
+
+In \verb+Pid1+ evaluate \verb+Pid2 = spawn(fun() -> ...end)+
+
+\includegraphics[width=10cm]{images/proc2.jpg}
+
+\subsection{Send}
+
+\verb+Pid ! Msg+ sends the message \verb+Msg+ to the 
+to the {\sl Mailbox} of a process named \verb+Pid+.
+\verb+Pid+ is the return value of of a previously evaluated \verb+spawn+
+expression.
+
+\subsection{Receive}
+
+Receive suspends the process until a message arrrives in the mailbox
+that matches one of the patterns in a \verb+receive+ statement.
+(Rather like a fancy select statement)
+
+Syntax:
+
+\begin{verbatim}
+receive
+    Pattern1 -> Actions1;
+    Pattern2 -> Actions2;
+    ...
+end
+\end{verbatim}
+
+\subsection{Including self()  in a message}
+
+\begin{itemize}
+\item \verb+self()+ is the pid of the current process
+\item including \verb+self()+ in a message allows the recipient to respond
+
+\includegraphics[width=10cm]{images/msgs1.jpg}
+
+\subsection{Spawn send and receive example}
+
+\verbatiminput{code/processes/counter1.erl}
+
+\begin{verbatim}
+1> c(counter1).     
+{ok,counter1}
+2> counter1:start().
+Counter is now 1
+bump
+Got bumped
+Counter is now 2
+Got bumped
+Counter is now 3
+\end{verbatim}
+
+\subsection{Selected or ordered receives}
+
+\includegraphics[width=10cm]{images/msgs2.jpg}
+
+Receive message from A or B whichever comes first
+
+\includegraphics[width=10cm]{images/msgs3.jpg}
+
+Receive message from A then B
+
+\subsection{Sending Pids in messages}
+
+\includegraphics[width=10cm]{images/msgs4.jpg}
+
+\subsection{Counter processes}
+
+How do we get the value of the counter from the process?
+
+\verbatiminput{code/processes/counter2.erl}
+
+\begin{verbatim}
+1> c(counter2).
+{ok,counter2}
+2> P = counter2:start().
+<0.38.0>
+3> counter2:tick(P).
+bump
+4> counter2:tick(P).
+bump
+5> counter2:read(P).
+3
+\end{verbatim}
+
+Is anything wrong with this code?
+
+\subsection{Another process might reply}
+
+``Better'' version -- include a return value to match on
+that makes sure the expected process answers.
+
+\verbatiminput{code/processes/counter3.erl}
+
+\subsection{Exercise}
+
+ \verb+multi_server+
+
+ Write \verb+multi_server.erl+. \verb+Pid = multi_server:start()+
+ starts a multi server.  It responds to three messages:
+
+\begin{itemize}
+\item \verb+{Pid, {email, Who, Subject, Text}}+ - a request to store email in your inbox
+\item \verb+{Pid, {im, Who, Text}}+ - an instant message - write message to terminal.
+\item \verb+{Pid, {get, File}}+ - a request to fetch a file. The server should reply
+by sending the file contents (as a message) back to \verb+Pid+.
+
+In all of these \verb+Pid+ is the process identifier of the process sending
+a request to the server.
+\end{itemize}
+
+Hints:
+
+\begin{itemize}
+\item \verb+{ok, Bin} = file:read_file(File)+ reads \verb+File+ into a binary.
+\item \verb+{ok, Stream} = file:open("inbox", [write,append])+ opens a file for write append
+\item \verb+io:format(Stream, "~p.~n",[Term])+ writes a term to a file
+\item \verb+file:close(Stream)+ closes a file
+\end{itemize}
+
+
+\subsection{Data abstraction (1)}
+
+Did we need to "invent" the functions \verb+tick+ and \verb+read+?
+
+\begin{verbatim}
+2> c(counter4).
+{ok,counter4}
+3> Pid = spawn(fun() -> counter4:counter(0) end).
+<0.42.0>
+4> Pid ! bump.
+bump
+5> Pid ! bump.
+bump
+6> counter4:rpc(Pid, read).
+2
+\end{verbatim}
+
+\verbatiminput{code/processes/counter4.erl}
+
+\subsection{Data abstraction (2)}
+
+\begin{itemize}
+\item Are we hiding the wrong thing? Should we expose the protocol?
+\item PROS:
+Hides the messaging structure.
+Makes "module resuability" easy.
+We know how to define APIs.
+\item CONS:
+More code.
+We don't know how to describe protocols.
+Protocols do not exist in Erlang (or in any other language
+for that matter) as first class objects.
+\end{itemize}
+
+\subsection{Abstracting Server Functionality }
+
+\verbatiminput{code/processes/abs_server.erl}
+
+\verbatiminput{code/processes/counter5.erl}
+
+\begin{verbatim}
+> Pid1 = counter5:start().
+<0.36.0>
+> counter5:tick(Pid1).
+{cast,#Fun<counter5.0.20406117>}
+> counter5:tick(Pid1).
+{cast,#Fun<counter5.0.20406117>}
+> counter5:read(Pid1)
+2
+\end{verbatim}
+
+\subsection{Registered processes.}
+
+Any program that wants to send a message to \verb+Pid+ must have
+\verb+Pid+ in a local variable. This must be communicated to all
+functions that want to send a messages to \verb+Pid+
+
+This is secure (but inconvenient)
+
+\begin{itemize}
+\item \verb+register+ -- registers a global name with a \verb+Pid+
+\item \verb+unregister+
+* After \verb+register(name, Pid)+, \verb+name ! Term+ sends a message to \verb+Pid+
+\item \verb+whereis(Name)+ returns \verb+Pid+ or \verb+undefined+
+\end{itemize}
+
+\subsection{Client-Server Model}
+
+\verbatiminput{code/processes/reg_counter1.erl}
+
+\subsection{Warnings}
+
+If two processes do \verb+register+ with the {\sl same name at the
+  same time} one will succeed and one will fail.
+
+Suppose we evaluate the following in two parallel processes:
+
+\begin{verbatim}
+make_global(Name, F) ->
+    register(Name, spawn(F)).
+\end{verbatim}
+
+One will fail the other will succeed. 
+
+\begin{itemize}
+\item Can you write a process \verb+make_global(Name, Fun)+ that is
+  correct using only \verb+register+ and \verb+whereis+?
+
+\item Think about it
+\end{itemize}
+
+\subsection{Timeouts:  receive ... after}
+
+\begin{verbatim}
+receive
+    Pattern1 -> ...
+    Pattern2 -> ...
+after
+    TimeInMilliseconds ->
+        Actions
+end.
+\end{verbatim}
+
+\includegraphics[width=10cm]{images/tick.jpg}
+
+\subsection{Exercise: Write an alarm process}
+
+\begin{itemize}
+\item \verb+alarm(Pid, Msg, Time)+ sends the message \verb+Msg+ to
+  \verb+Pid+ after \verb+Time+ milliseconds.
+\item Use it to write "Hello, World!" to your console every two
+  seconds
+\end{itemize}
+
+
+\subsection{Mutually recursive processes}
+
+Process one needs to know \verb+Pid2+ and processes two needs to know
+\verb+Pid1+
+
+\begin{verbatim}
+Pid1 = spawn(fun() -> start(F1) end),
+Pid2 = spawn(fun() -> start(F2) end),
+Pid2 ! Pid1,
+Pid1 ! Pid2,
+...
+start(F) ->
+         receive
+             Pid -> F(Pid)
+         end
+\end{verbatim}
+
+\subsection{Spawn process, send the code later}
+
+\begin{verbatim}
+Pid = spawn(fun() -> wait() end),
+...
+Pid ! {do, F}
+...
+
+wait() ->
+    receive
+       {do, F} ->
+           F()
+    end
+\end{verbatim}
+
+\subsection{SMP and processes}
+
+\begin{itemize}
+\item Erlang can take advantage of multiple processors and cores
+\item Enable using \verb+-smp +s n + options (only if compiled in)
+\end{itemize}
+
+\subsection{Summary}
+
+All concurrent behavior is programmed with
+
+\begin{itemize}
+\item \verb+spawn+
+\item \verb+send+
+\item \verb+receive+
+\end{itemize}
+
+Instead of {\sl blocks}, {\sl mutexes}, {\sl threads}, {\sl
+  processes}, {\sl synchronised methods}, ...
+
+\subsection{Client-Server}
+
+{\bf The Most Important Concurrency Pattern}
+
+\includegraphics[width=10cm]{images/cs.jpg}
+
+\begin{verbatim}
+-module(s1).
+-export([start/0, f1/2, f2/3, ..., stop/0]).
+
+start() -> register(s1, spawn(fun() -> loop(State1))).
+
+%% interface routines
+f1(A, B) -> rpc(s1, {do_f1,A,B}).
+f2(...)  -> rpc(s1, ...).
+
+rpc(Q) ->
+    s1 ! {self(), Q},
+    receive
+        {s1, Reply} -> Reply
+    end.
+    
+loop(State) ->
+     receive
+         {From, {do_f1, A, B}} ->
+              ...
+              FRom ! {s1, Reply},
+              loop(State1);
+         ...
+     end.
+\end{verbatim}
+
+\subsection{Variations: Exit client on server error}
+
+Exit the client if the RPC causes an error in the server
+
+\begin{verbatim}
+loop(State) ->
+    receive
+      ..
+      {From, Q} ->    
+          try  
+             {Reply, State1} = f(Q, State),
+             From ! {Name, ok, Reply},
+             loop(State1);
+          catch 
+             exit:Why ->
+                From ! {Name, die, Why},
+                loop(State)
+          end
+\end{verbatim}
+
+\begin{verbatim}
+rpc(Name, Q) ->
+    Name ! {self(), Q},
+    receive
+       {Name, ok, Reply} -> Reply;
+       {Name, die, Why} -> exit(Why)
+    end.
+\end{verbatim}
+
+\subsection{Variations:  timeout in client}
+
+\begin{verbatim}
+rpc(Name, Q) ->
+    Name ! {self(), Q},
+    receive
+       {Name, ok, Reply} -> Reply;
+       {Name, die, Why} -> exit(Why)
+    after
+       Time ->
+           exit(timeout)
+    end.
+...
+\end{verbatim}
+
+\subsection{Variations:  delegation}
+
+\begin{verbatim}
+loop() ->
+   receive 
+     {From, Q} ->    
+        ...
+        Other ! {do, Q, replyAs, Name, replyTo, From}
+\end{verbatim}
+Delegated
+
+\begin{verbatim}
+loop() ->
+   receive 
+     {do, Q, replyAs, Name, replyTo, From} ->    
+        ...
+        From ! {Name, Reply}
+\end{verbatim}
+Responder
+
+\begin{verbatim}
+loop() ->
+   receive 
+     {From, Q} ->    
+        ...
+        From ! {Name, Reply}
+\end{verbatim}
+Original
+
+\subsection{Variations: Mobile code}
+
+\begin{verbatim}
+loop(State) ->
+   ... 
+   {From, Func} ->    
+        {Reply, State1} = Func(State),
+        From ! {self(), Reply},
+        loop(State1);
+   ...
+\end{verbatim}
+
+\subsection{Variations: Mobile code with transactions}
+
+\begin{verbatim}
+loop(State) ->
+   ... 
+   {From, Func} ->  
+        try Func(State) of
+            {Reply, State1} ->
+                From ! {self(), Reply},
+                loop(State1);
+        catch
+           _:_ ->
+                exit(From, evilLaugh),
+                loop(State)
+        end
+   ...
+\end{verbatim}
+
+\subsection{Rolling your own}
+
+\begin{itemize}
+\item As you can see there are many variations of the client-server theme.
+\item No two ways of writing the client-server loop do exactly the same thing.
+These programs can be made to do exactly what you want. 
+\item If you understand this then you can easily design your own middleware system
+\end{itemize}
+
+\section{Links}
+
+\begin{itemize}
+\item \verb+link+ -- link to a process
+\item \verb+unlink+ -- remove the link
+\item \verb+process_flag(trap_exit, true)+ -- receive a signal as a message
+\end{itemize}
+
+\subsection{What is a link?}
+
+
+\includegraphics[width=10cm]{images/crash.jpg}
+
+\begin{itemize}
+\item \verb+links+ define error propagation paths
+\item If \verb+A+ is linked to \verb+B+ then:
+{\sl If \verb+A+ fails then \verb+B+ will be notified}
+{\sl If \verb+B+ fails then \verb+A+ will be notified}
+\item links are not "stacked" - calling \verb+link+ ten times has the same effect as
+calling it once.
+\item links propagate at the speed of messages - they are not instantaneous
+(important in distributed systems)
+\end{itemize}
+
+
+\subsection{Messages and signals}
+
+\begin{itemize}
+\item Messages are sent with \verb+send+
+\item Signals are sent when processes die. Signals are not messages
+\item If \verb+A+ is linked to \verb+B, C, ...+ then \verb+B,C,...+ will be sent
+an exit signal if \verb+A+ dies  
+\item All processes die when they receive signals, unless they are
+set to trap exits
+\item To trap exits a process evaluates \verb+process_flag(trap_exit, true)+
+\end{itemize}
+
+\includegraphics[width=10cm]{images/trap.jpg}
+
+\subsection{Exit messages}
+
+\item \verb+{'EXIT', Pid, Why}+ can be received if you are trapping exits
+\item If you are {\sl not} trapping exits and \verb+Why+ is not the
+  atom \verb+normal+ you die
+\end{itemize}
+
+
+\subsection{Example (1) - monitor }
+
+\verb+monitor(Pid)+ observer \verb+Pid+ and print a message if \verb+Pid+ dies.
+
+\includegraphics[width=10cm]{images/trap.jpg}
+
+\begin{verbatim}
+monitor(Pid) ->
+    link(Pid),
+    process_flag(trap_exit, true),
+    receive
+        {'EXIT',Pid,Why} ->
+            io:format("Process died Reason:~p~n",[Pid,Why])
+    end.
+\end{verbatim}
+
+\subsection{The small print}
+
+\begin{itemize}
+\item You can fake an exit message by calling \verb+exit(Pid1, Why)+ -- If you are \verb+Pid2+ then \verb+Pid1+ sees \verb+{'EXIT',Pid2, Why}+ and assumes you have died - but you are really alive.
+{\sl Do not abuse.}
+\item exit reason \verb+kill+ is unstoppable.
+\end{itemize}
+
+\subsection{Crashing and exit propagation}
+
+\includegraphics[width=10cm]{images/exits.jpg}
+
+\includegraphics[width=10cm]{images/crashing.jpg}
+
+\begin{itemize}
+\item Exits propagate through linked processes. 
+\item If any of A..F crash all processes crash
+\item System processes stop the propagation of errors. 
+\item Process D  does not crash
+\end{itemize}
+
+\subsection{Why do we do this?}
+
+We can build the system in layers to make it fault tolerant.
+
+\includegraphics[width=10cm]{images/layers.jpg}
+
+
+
+\subsection{Things to think about}
+
+\begin{itemize}
+\item If you do \verb+spawn+ followed by \verb+link+ the process might
+  die very quickly (ie, before getting to the \verb+link+ statement)
+\item Solution: \verb+spawn_link+ is like \verb+spawn+ followed by \verb+link+ only the two are performed atomically
+\item Need to make sure \verb+trap_exit+ is evaluated *before* we try
+  to catch errors -- think about synchronization here
+\end{itemize}
+
+
+\subsection{Exercise - Keep Alive}
+
+Write a function \verb+make_global(Name, Fun/0)+ that starts a
+"global" process named \verb+Name+.  If \verb+Name+ dies for any
+reason, restart it. Record the times and reasons for starting and
+restarting in an error log.
+
+Useful stuff:
+
+\begin{itemize}
+\item \verb+time() -> {Hour, Minute, Second}+
+\item \verb+error_logger:format(String, List)+ writes to the error log
+\end{itemize}
+
+\subsection{The principle of remote error handling}
+\begin{itemize}
+\item To make a fault-tolerant system you need two (separated) computers.
+\item Let one process do the work
+\item Let some other process fix the error
+\item You can think of exit signals as uncaught exceptions that escape from the
+process and propagate to some other process
+\item Processes that fail should die-early
+\item We can make very reliable systems this way
+\item We can test  on one node and deploy on multiple nodes
+(everything works the same way)
+\end{itemize}
+
+\subsection{half links (monitor)}
+\begin{itemize}
+\item \verb+erlang:monitor(process, Pid)+
+\item asymmetric
+\item countable (if a process is monitored N times it must be demonitored N times
+before the monitor is released - unlike link/unlink)
+\end{itemize}
+
+\subsection{Summary}
+\begin{itemize}
+\item \verb+link+ - create a link
+\item \verb+unlink+ - release the link
+\item \verb+process_flag(trap_exit, true)+ -- trap exits
+\item \verb+{'EXIT',Pid,Why}+ then message sent when a process dies
+\end{itemize}
+
+All of this works in distributed Erlang. These mechanism are orthogonal to
+the \verb+spawn+, \verb+send+ and \verb+receive+
+
+Now we've seen all that you need to make a powerful fault-tolerant system.
+
+\section{Sockets Based Distribution}
+
+\subsection{Uses gen\_tcp or gen\_udp}
+
+Book \verb+chapter 14+
+
+\subsection{Client}
+
+\begin{verbatim}
+{ok, Socket} = gen_tcp:connect(Host, Port, [Options]),
+ok = gen_tcp:send(Socket, Data),
+...
+receive
+    {tcp, Socket, Data} ->
+         %% do something with the data
+         ...
+    {tcp_closed, Socket} ->
+         %% take care of this ...    
+\end{verbatim}
+
+\subsection{Server}
+
+A "single-shot" server (accepts one connection)
+
+\begin{verbatim}
+start_server() ->
+    {ok, Listen} = gen_tcp:listen(Port, [Options]),
+    {ok, Socket} = gen_tcp:accept(Listen),
+    %% We use same calls as the client to read and write
+    %% the socket
+\end{verbatim}
+
+\subsection{A sequential server}
+
+\begin{verbatim}
+{ok, Listen} = gen_tcp:listen(Port, ...)
+seq_loop(Listen).
+
+seq_loop(Listen) ->
+    {ok, Socket} = gen_tcp:accept(Listen),
+    loop(Socket),
+    seq_loop(Listen).
+\end{verbatim}
+
+\subsection{A parallel server}
+
+Now turn this into a parallel server
+
+\begin{verbatim}
+{ok, Listen} = gen_tcp:listen(Port, ...)
+spawn(fun() -> par_loop(Listen) end).
+
+par_loop(Listen) ->
+    {ok, Socket} = gen_tcp:accept(Listen),
+    spawn(fun() -> par_loop(Listen) end),
+    loop(Socket).
+\end{verbatim}
+
+\subsection{Packet lengths}
+
+A 4 byte length header is automatically added/removed by the system
+when calling \verb+gen_tcp:send+ and messages are assembled to the
+correct length before \verb+{tcp, Sock, Data}+ messages are send to
+the controlling process
+
+\begin{verbatim}
+gen_tcp:connect(Host, Port, [..., {packet,4}, ...])
+gen_tcp:listen(Port, [..., {packet, 4}, ...])
+\end{verbatim}
+
+
+\subsection{Sending Erlang terms}
+
+\begin{verbatim}
+gen_tcp:send(Socket, term_to_binary(Term)) ...
+
+receive
+        {tcp, Socket, Data} ->
+              Term = binary_to_term(Data),
+              ...
+\end{verbatim}
+
+\subsection{The middle man pattern}
+
+\begin{verbatim}
+loop(Pid, Socket) ->
+    receive
+        {Pid, Msg} ->
+            gen_tcp:send(Socket, term_to_binary(Msg)),
+            loop(Pid, Socket);
+            
+        {tcp, Socket, Data} ->
+            Pid ! binary_to_term(Data),
+            loop(Pid, Socket);
+            
+        {'EXIT', Pid} ->
+            gen_tcp:close(Socket);
+            
+        {tcp_closed, Socket} ->
+            exit(Pid, socket_closed)
+    end.
+\end{verbatim}
+
+\subsection{Exercise}
+
+Do this at home!
+
+\verb+multi_server+ over sockets
+
+Write \verb+server.erl+ and \verb+client.erl+.
+
+Use a middle man to connect a client on one machine to a server on
+another machine. Use \verb+middle_man.erl+ to connect the client to a
+socket on one machine and on the other machine to connect a process
+owning a socket to an instance of \verb+multi_server+.
+
+Hint: Book page 248 (and these notes) have the parallel server
+pattern.  The middle man pattern is described in the course notes and
+on page 404 of the book in the description of \verb+lib_chan_mm+
+
+\subsection{The Bit Syntax}
+
+Pack/Match bit strings from binaries
+
+\begin{verbatim}
+1> Red = 2, Green=61, Blue=20.
+20
+%% Red takes 5 bits, Green 6, and blue 5
+2> Bin = <<Red:5, Green:6, Blue:5>>.
+<<23,180>>
+3> io:format("~8.2.0B ~8.2.0b~n", binary_to_list(Bin)).
+   00010111 10110100
+%% 00010 111101 10100
+\end{verbatim}
+
+Size must be a multiple of 8 bits
+
+\subsection{Tips}
+
+\begin{itemize}
+\item Can handle different endian words, big, little, ...
+\item complex syntax
+\item experiment in shell then cut and paste into program
+\end{itemize}
+
+\subsection{Examples}
+
+\begin{itemize}
+\item Book page 86 - find MP3 headers (for syncing with SHOUTCAST server)
+
+\item Too numerous to mention
+
+\item Fun just now. Decode/Encode AMF (Actionscript binary protocol)
+
+\item Useful for writing assemblers, protocol convertors etc.
+\end{itemize}
+
+\section{ Distributed Erlang}
+
+\begin{itemize}
+\item Distributed Erlang -- several \verb+nodes+ belong to the same
+  system.  \verb+spawn+ has an extra argument
+  \verb+spawn(Node, Mod, Fun, Args)+
+\item SMP Erlang -- symmetric multiprocessing. Two or more identical
+  processors are connected to a single shared main memory.
+\item Socket Distribution -- Not really distributed at all
+\end{itemize}
+
+\subsection{Distribution primitives}
+
+Adds three new primitives and a load of libraries
+
+\begin{itemize}
+\item \verb+spawn(Node, Mod, Func, Args)+ -- {\sl everything} works
+  as before regarding \verb+links+ exit messages an so on.
+\item \verb+alive(Node)+ -- tell the system you are alive
+\end{itemize}
+
+The main libraries
+
+\begin{itemize}
+\item \verb+rcp+ -- doing remote procedure calls
+\item \verb+global+ -- global operation over all nodes
+\end{itemize}
+
+\subsection{Distributed Erlang}
+
+\begin{itemize}
+\item Cookie based security
+\item Distribution over TCP (can be over secure sockets, but
+  installation is more complex)
+\item Only suitable in a cluster
+\item Used in enterprise software behind a firewall
+\end{itemize}
+
+\subsection{Distributed Erlang }
+
+The most common architectural pattern is to write traffic handling as
+non distributed applications on a single node. We use \verb+mnesia+
+and the error loggers running replicated on multiple nodes.
+
+\verb+mnmesia+ the (Erlang database) is can be configured to provide
+table replication over multiple nodes.
+
+Fault tolerant applications usually use replicated pairs of nodes. One
+node does the work the other is a hot standby.
+
+\subsection{Two nodes, one machine}
+
+\begin{verbatim}
+$ erl -sname one          %%  in one terminal window
+(one@joe-armstrongs-computer)1> 
+\end{verbatim}
+
+
+\begin{verbatim}
+$ erl -sname two        %% in another window
+> (two@joe-armstrongs-computer)1> net_adm:ping('two@joe-armstrongs-computer').
+pong
+> (two@joe-armstrongs-computer)1> net_adm:ping('one@joe-armstrongs-computer').
+pong
+(two@joe-armstrongs-computer)2> node().
+'two@joe-armstrongs-computer'
+(two@joe-armstrongs-computer)3> rpc:call('one@joe-armstrongs-computer', 
+                                         erlang, node, []).
+'one@joe-armstrongs-computer'
+\end{verbatim}
+
+
+\subsection{Shell can connect to remote nodes}
+
+\begin{verbatim}
+$erl -name one
+..
+(one@joe-armstrongs-computer.local)1> ^G
+User switch command
+ --> j
+   1* {shell,start,[init]}
+ --> r 'server+doris.myerl.home.net'
+ --> j
+   1  {shell,start,[init]}
+   2* {'server@doris.myerl.home.net',shell,start,[]}
+ --> c 2
+Eshell V5.5.5  (abort with ^G)
+(server+doris.myerl.home.net)1> node().
+'server@doris.myerl.home.net' ^G
+User switch command
+ --> c 1
+(one+joe-armstrongs-computer.local)1> node().
+'one@joe-armstrongs-computer.local'
+\end{verbatim}
+
+\section{OTP}
+
+\includegraphics[width=10cm]{images/OTP_Arch.jpg}
+
+\begin{itemize}
+\item Open Telecomms Platform
+\item Maintained by product group inside Ericsson
+\item Releases 2-3 times/year
+\item "http://www.erlang.org/":http://www.erlang.org/ 
+\item "http://www.erlang.org/doc.html":http://www.erlang.org/doc.html
+\end{itemize}
+
+\subsection{Structure}
+
+Generic structure
+
+\begin{verbatim}
+/appname/ebin  %% beam code
+        /src   %% erlang source
+        /priv  %% everything else
+\end{verbatim}
+
+\subsection{Principles}
+
+\begin{itemize}
+\item "http://www.erlang.org/doc/design\_principles/part\_frame.html":http://www.erlang.org/doc/design\_principles/part\_frame.html
+\item Overview
+\item Client-server \verb+gen_server+
+\item Finite State machines \verb+gen_fsm+
+\item Event handling \verb+gen_event+
+\item Supervisor \verb+gen_sup+
+\item Applications 
+\item Releases
+\item Application upgrade
+\end{itemize}
+
+\subsection{Getting started with applications}
+
+\begin{itemize}
+\item Read book \verb+chapters 16 and 18+ {\sl especially} +16.1
+\item Read PhD thesis "http://www.sics.se/~joe/thesis":http://www.sics.se/~joe/thesis
+\item Read {\sl design principles} 
+   "http://www.erlang.org/doc/design\_principles/part\_frame.html"
+\item Forthcoming O'Reilly book 
+\end{itemize}
+
+\subsection{behaviors}
+
+\begin{itemize}
+\item The OTP name for "design patterns"
+\item Callback modules for client-servers, supervision trees etc.
+\item Encapsulates "best practice" from many individual projects
+\item 3'rd generation - ie the third rewrite of basic servers
+\item Used in practice
+\end{itemize}
+
+\subsection{Case studies}
+See Armstrong PhD thesis.
+\begin{itemize}
+\item AXD301 -- gen\_server (122), gen\_event (36), supervisor (20), gen\_fsm
+(10), application (6).  
+\item Nortel Networks -- gen\_server (56),
+supervisor (19), application (15), gen\_event (9), rpc\_server (2),
+gen\_fsm (1), supervisor\_bridge (1).
+\end{itemize}
+
+\verb+gen_server+ is the most used behavior
+
+\subsection{gen\_server}
+
+\begin{itemize}
+\item A generic client-server model
+\item \verb+gen_server:start_link(Name, Mod, InitArgs, Opts)+
+\item \verb+Mod:handle_call(...)+ gets called for all RPCs
+\item \verb+Mod:handle_cast(...)+ gets called for all casts
+\item ...
+\item \verb+Mod:code_change(...)+ gets called when you want to change the code
+\end{itemize}
+
+More later...
+
+\subsection{gen\_supervisor}
+
+\includegraphics[width=10cm]{images/sup.jpg}
+
+\begin{itemize}
+\item Supervision trees
+\item Hierarchical tree of workers and supervisors
+\item Supervisors monitor the workers
+\item If a worker fails this is noticed by the supervisor
+\item Supervisors can start, restart and kill workers
+\item 1:1 and 1:N supervision
+\end{itemize}
+
+\section{Windup}
+
+\subsection{Sequential Erlang}
+
+\begin{itemize}
+\item Simple functional language
+\item Lists, tuples, atoms, bignums, floats, ...
+\item Function selection is by pattern matching
+\item Data selection is by pattern matching
+\item Variables are immutable
+\end{itemize}
+
+\subsection{Concurrent Erlang}
+
+\begin{itemize}
+\item Adds \verb+spawn+, \verb+send+ and \verb+receive+ to sequential Erlang.
+\item \verb+register+ [\verb+unregister+] can be used to associate a name with a process
+\end{itemize}
+
+\subsection{Fault-tolerant Erlang}
+
+\begin{itemize}
+\item \verb+catch+ .. \verb+throw+ and \verb+try+ ... \verb+catch+ ... \verb+end+ added to sequential Erlang
+\item \verb+link+, \verb+process_flag(trap_exit, true)+ added to concurrent Erlang
+\end{itemize}
+
+\subsection{Distributed Erlang}
+\begin{itemize}
+\item Add +\verb+spawn(Node, Mod, Func, Args)+ to concurrent Erlang
+\item  Or use explicit term passing over sockets
+\end{itemize}
+
+\subsection{Benefits of Erlang}
+\begin{itemize}
+\item Multi-core ready
+\item Processes in the language (not OS)
+\item Designed for fault-tolerant distributed programming
+\item Battle tested
+\end{itemize}
+
+\subsection{Some Projects to research}
+\begin{itemize}
+\item AXD301 (Ericsson)
+\item Kreditor (kreditor.se)
+\item SimpleDB (Amazon)
+\item CouchDB (text db)
+\item MociWeb (Mochimedia)
+\item Ejabberd (jabber server)
+\item ErlyWeb (Erlang on Rails :-)
+\end{itemize}
+
+\subsection{And Remember...}
+
+Make It Fun!
+
+\end{document}
+
